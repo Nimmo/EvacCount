@@ -154,9 +154,12 @@ def journal_entry(cmdr, system, station, entry, state):
         #Figure out how we pick up passengers
         this.missions[entry["MissionID"]] = entry["PassengerCount"]
         config.set("EvacCount_missions", json.dumps(this.missions))
-
+    elif entry["event"] == "SearchAndRescue" and (entry["Name"] == "occupiedcryopod" or entry["Name"] == "damagedescapepod"):
+        this.evacuatedSession += entry["Count"] # Get correct ammount
+        this.evacuatedTotal += entry["Count"] # Get correct ammount
+        config.set("EvacCount_evacuated", int(this.evacuatedTotal))
+        updateCounts()
     elif entry["event"] == "MissionCompleted" and entry["Name"] == "Mission_DS_PassengerBulk_name":
-        print "Completed mission"
         this.evacuatedSession += this.missions[entry["MissionID"]] # Get correct ammount
         this.evacuatedTotal += this.missions[entry["MissionID"]] # Get correct ammount
         config.set("EvacCount_evacuated", int(this.evacuatedTotal))
