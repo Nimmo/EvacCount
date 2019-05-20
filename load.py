@@ -27,7 +27,7 @@ from l10n import Locale
 
 this = sys.modules[__name__]	# For holding module globals
 
-this.VERSION = "0.1"
+this.VERSION = "0.2"
 this.PADX = 5
 this.WIDTH = 10
 
