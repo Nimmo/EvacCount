@@ -27,18 +27,20 @@ from l10n import Locale
 
 this = sys.modules[__name__]	# For holding module globals
 
-this.VERSION = "0.2"
+this.VERSION = "0.3"
 this.PADX = 5
 this.WIDTH = 10
 
 def resetTotalEvacuated():
-    config.set("EvacCount_evacuated", 0)
-    this.evacuatedTotal = 0
+    config.set("EvacCount_totals","[0,0,0,0,0,0,0,0]")
+    config.set("EvacCount_missions",json.dumps({}))
+    this.totals = [0,0,0,0,0,0,0,0]
+    this.missions = {}
+    updateCounts()
 
 def plugin_prefs(parent, cmdr, is_beta):
    # Skeletony bits
    this.frame = nb.Frame(parent)
-
    frameTop = nb.Frame(this.frame)
    frameTop.grid(row=0, column=0, sticky=tk.W)
    frameBottom = nb.Frame(this.frame)
@@ -50,13 +52,13 @@ def plugin_prefs(parent, cmdr, is_beta):
    frame = nb.Frame(parent)
 
    # total evac count
-   evacuatedTotal = nb.Checkbutton(frameBottom, variable=evacuatedTotalOption, text="Calculate total number of evacuated civilians")
+   evacuatedTotal = nb.Checkbutton(frameBottom, variable=evacuatedTotalOption, text="Calculate totals")
    evacuatedTotal.var = evacuatedTotalOption
    evacuatedTotal.grid(row=0, column=0, padx=this.PADX * 2, sticky=tk.W)
-   resetButton = nb.Button(frameBottom, text="Reset", command=resetTotalEvacuated)
+   resetButton = nb.Button(frameBottom, text="Reset Totals", command=resetTotalEvacuated)
    resetButton.grid(row=1, column=0, padx=this.PADX * 4, pady=5, sticky=tk.W)
 
-   evacuatedSession = nb.Checkbutton(frameBottom, variable=evacuatedSessionOption, text="Calculate evacuated civilians for current session")
+   evacuatedSession = nb.Checkbutton(frameBottom, variable=evacuatedSessionOption, text="Calculate totals for current session")
    evacuatedSession.var = evacuatedSessionOption
    evacuatedSession.grid(row=2, column=0, padx=this.PADX * 2, sticky=tk.W)
 
@@ -69,11 +71,44 @@ def plugin_prefs(parent, cmdr, is_beta):
    evacuatedSessionElite.var = evacuatedSessionSelected
    evacuatedSessionElite.grid(row=4, column=0, padx=this.PADX * 4, sticky=tk.W)
 
+
+   # Search and Rescue settings
+   #'''# TODO: complete later
+   nb.Label(frameBottom, text="Search and rescue options").grid(row=5, column=0, padx=this.PADX, sticky=tk.W)
+
+   sarBlackBox = nb.Checkbutton(frameBottom, variable=blackBoxOption, text="Track occupied escape pods")
+   sarBlackBox.var = blackBoxOption
+   sarBlackBox.grid(row=6, column=0, padx=this.PADX * 2, sticky=tk.W)
+
+   sarWreckage = nb.Checkbutton(frameBottom, variable=wreckageOption, text="Track wreckage")
+   sarWreckage.var = wreckageOption
+   sarWreckage.grid(row=7, column=0, padx=this.PADX * 2, sticky=tk.W)
+
+   sarEscapePod = nb.Checkbutton(frameBottom, variable=occupiedPodOption, text="Track occupied escape pods")
+   sarEscapePod.var = occupiedPodOption
+   sarEscapePod.grid(row=8, column=0, padx=this.PADX * 2, sticky=tk.W)
+
+   sarPersonalEffects = nb.Checkbutton(frameBottom, variable=personalEffectsOption, text="Track personal effects")
+   sarPersonalEffects.var = personalEffectsOption
+   sarPersonalEffects.grid(row=9, column=0, padx=this.PADX * 2, sticky=tk.W)
+
+   sarDamagedPod = nb.Checkbutton(frameBottom, variable=damagedPodOption, text="Track damaged pods")
+   sarDamagedPod.var = damagedPodOption
+   sarDamagedPod.grid(row=10, column=0, padx=this.PADX * 2, sticky=tk.W)
+
+   sarPrisoners = nb.Checkbutton(frameBottom, variable=prisonersOption, text="Track political prisoners")
+   sarPrisoners.var = prisonersOption
+   sarPrisoners.grid(row=11, column=0, padx=this.PADX * 2, sticky=tk.W)
+
+   sarEncrypted = nb.Checkbutton(frameBottom, variable=correspondenceOption, text="Track encrypted correspondence")
+   sarEncrypted.var = correspondenceOption
+   sarEncrypted.grid(row=12, column=0, padx=this.PADX * 2, sticky=tk.W)
+   #'''
    setStateRadioButtons(evacuatedSessionEdmc, evacuatedSessionElite)
    evacuatedSession.config(command=partial(setStateRadioButtons, evacuatedSessionEdmc, evacuatedSessionElite))
-   nb.Label(frameBottom).grid(row=5)  # spacer
-   nb.Label(frameBottom).grid(row=6)  # spacer
-   nb.Label(frameBottom, text="Plugin version: {0}".format(this.VERSION)).grid(row=7, column=0, padx=this.PADX, sticky=tk.W)
+   nb.Label(frameBottom).grid(row=13)  # spacer
+   nb.Label(frameBottom).grid(row=14)  # spacer
+   nb.Label(frameBottom, text="Plugin version: {0}".format(this.VERSION)).grid(row=15, column=0, padx=this.PADX, sticky=tk.W)
    return this.frame
 
 def setStateRadioButtons(evacuatedSessionEdmc, evacuatedSessionElite):
@@ -88,24 +123,35 @@ def setStateRadioButtons(evacuatedSessionEdmc, evacuatedSessionElite):
 def prefs_changed():
    settings = [this.evacuatedTotalOption.get(), this.evacuatedSessionOption.get(), this.evacuatedSessionSelected.get()]
    config.set("EvacCount_options", json.dumps(settings))
-
+   sarSettings = [this.blackBoxOption.get(), this.wreckageOption.get(), this.occupiedPodOption.get(), this.personalEffectsOption.get(), this.damagedPodOption.get(), this.prisonersOption.get(), this.correspondenceOption.get()]
    updateMainUi()
 
 def updateMainUi():
     # labels for evacation EvacCountSetting
     settingTotal, settingSession, settingSessionOption = getSettingsEvacuated()
-    row = 0
-    for i in range(len(this.evacuatedLabels)):
-        description, evacuated = this.evacuatedLabels[i]
-        if (i == 0 and settingTotal) or (i == 1 and settingSession):
+    sarSettings = getSarSettings
+
+    for row in range(len(this.evacuatedLabels)):
+        description, session, total = this.evacuatedLabels[row]
+        if row == 0:
             description.grid(row=row, column=0, sticky=tk.W)
-            description["text"] = "Evacuated ({0}):".format("total" if i == 0 else "session")
-            evacuated.grid(row=row, column=1, sticky=tk.W)
-            evacuated["text"] = "{0}".format(Locale.stringFromNumber(this.evacuatedTotal, 0) if i == 0 else Locale.stringFromNumber(this.evacuatedSession, 0))
-            row += 1
+            description["text"] = "Item"
+            session.grid(row=row, column=1, sticky=tk.W)
+            session["text"] = "Session"
+            if(settingTotal == 1):
+                total.grid(row=row, column=2, sticky=tk.W)
+                total["text"] = "Total"
         else:
-            description.grid_remove()
-            evacuated.grid_remove()
+            description.grid(row=row, column=0, sticky=tk.W)
+            description["text"] = this.labels[row-1]
+            session.grid(row=row, column=1, sticky=tk.W)
+            session["text"] = this.counts[row-1]
+            if(settingTotal == 1):
+                total.grid(row=row, column=2, sticky=tk.W)
+                total["text"] = this.totals[row-1]
+    #for row in range(len(this.evacuatedLabels)):
+    #    description, session, total = this.evacuatedLabels[row]
+
 
 def plugin_app(parent):
     frame = tk.Frame(parent)
@@ -114,26 +160,36 @@ def plugin_app(parent):
 
     this.status = tk.Label(parent, anchor=tk.W, text="")
     this.evacuatedLabels = list()
-    for i in range(2):
-        this.evacuatedLabels.append((tk.Label(frame), tk.Label(frame)))
+    for i in range(9):
+        this.evacuatedLabels.append((tk.Label(frame), tk.Label(frame), tk.Label(frame)))
 
     updateMainUi()
 
     return (frame)
 
-
+def getSarSettings():
+    sarSettings = json.loads(config.get("EvacCount_sarSettings") or "[1,1,1,1,1,1,1]")
+    return sarSettings
 
 def plugin_start():
-   this.count = json.loads(config.get("EvacCount") or "[]")
+   this.labels = ["Evacuees", "Black Boxes", "Wreckage", "Escape Pods", "Personal Effects", "Damaged Escape Pods", "Political Prisoners", "Encrypted Correspondence"]
+
    this.missions = json.loads(config.get("EvacCount_missions") or "{}")
-   this.evacuatedTotal = config.getint("EvacCount_evacuated") or 0
-   this.passengersOnBoard = config.getint("EvacCount_onBoard") or 0
-   this.evacuatedSession = 0
+   this.totals = json.loads(config.get("EvacCount_totals") or "[0,0,0,0,0,0,0,0]")
+   this.counts = [0,0,0,0,0,0,0,0]
+
    evacuatedTotalOption,evacuatedSessionOption,evacuatedSessionSelected = getSettingsEvacuated()
+   blackBoxOption, wreckageOption, occupiedPodOption, personalEffectsOption, damagedPodOption, prisonersOption, correspondenceOption = getSarSettings()
    this.evacuatedTotalOption = tk.IntVar(value=evacuatedTotalOption and 1)
    this.evacuatedSessionOption = tk.IntVar(value=evacuatedSessionOption and 1)
    this.evacuatedSessionSelected = tk.IntVar(value=evacuatedSessionSelected and 1)
-
+   this.blackBoxOption = tk.IntVar(value=blackBoxOption and 1)
+   this.wreckageOption = tk.IntVar(value=wreckageOption and 1)
+   this.occupiedPodOption = tk.IntVar(value=occupiedPodOption and 1)
+   this.personalEffectsOption = tk.IntVar(value=personalEffectsOption and 1)
+   this.damagedPodOption = tk.IntVar(value=damagedPodOption and 1)
+   this.prisonersOption = tk.IntVar(value=prisonersOption and 1)
+   this.correspondenceOption = tk.IntVar(value=correspondenceOption and 1)
    return "EvacCount"
 
 def getSettingsEvacuated():
@@ -144,27 +200,69 @@ def getSettingsEvacuated():
     return settingTotal, settingSession, settingSettingOption
 
 def updateCounts():
-    _, evacuated = this.evacuatedLabels[0]
-    evacuated["text"] = "{0}".format(Locale.stringFromNumber(this.evacuatedTotal, 0))
-    _, evacuated = this.evacuatedLabels[1]
-    evacuated["text"] = "{0}".format(Locale.stringFromNumber(this.evacuatedSession, 0))
+    for i in range(1,len(this.evacuatedLabels)):
+        item,session, total = this.evacuatedLabels[i]
+        session["text"] = "{0}".format(Locale.stringFromNumber(counts[i-1],0))
+        total["text"] = "{0}".format(Locale.stringFromNumber(totals[i-1],0))
+
 
 def journal_entry(cmdr, system, station, entry, state):
     if entry["event"] == "MissionAccepted" and entry["Name"] == "Mission_DS_PassengerBulk":
         #Figure out how we pick up passengers
         this.missions[entry["MissionID"]] = entry["PassengerCount"]
         config.set("EvacCount_missions", json.dumps(this.missions))
-    elif entry["event"] == "SearchAndRescue" and (entry["Name"] == "occupiedcryopod" or entry["Name"] == "damagedescapepod"):
-        this.evacuatedSession += entry["Count"] # Get correct ammount
-        this.evacuatedTotal += entry["Count"] # Get correct ammount
-        config.set("EvacCount_evacuated", int(this.evacuatedTotal))
-        updateCounts()
+        print "Picked up", str(entry["PassengerCount"]), "passengers."
     elif entry["event"] == "MissionCompleted" and entry["Name"] == "Mission_DS_PassengerBulk_name":
-        this.evacuatedSession += this.missions[entry["MissionID"]] # Get correct ammount
-        this.evacuatedTotal += this.missions[entry["MissionID"]] # Get correct ammount
-        config.set("EvacCount_evacuated", int(this.evacuatedTotal))
-        del this.missions[entry["MissionID"]]
+        try:
+            print "Just got", str(this.missions[entry["MissionID"]]),"passengers."
+            this.counts[0] += this.missions[entry["MissionID"]] # Get correct ammount
+            this.totals[0] += this.missions[entry["MissionID"]] # Get correct ammount
+            config.set("EvacCount_totals", json.dumps(this.totals))
+
+            del this.missions[entry["MissionID"]]
+        except KeyError:
+            print "You appear to have tried to hand in a mission which this plugin didn't know about"
         config.set("EvacCount_missions", json.dumps(this.missions))
         updateCounts()
-    elif entry["event"] == "LoadGame" and this.evacuatedSessionOption.get() and this.evacuatedSessionSelected.get():
-        this.evacuatedSession = 0
+    elif entry["event"] == "SearchAndRescue" and entry["Name"] == "usscargoblackbox":
+        this.counts[1] += entry["Count"] # Get correct ammount
+        this.totals[1] += entry["Count"] # Get correct ammount
+        config.set("EvacCount_totals", json.dumps(this.totals))
+        print "Just got", str(entry["Count"]),"escape pods."
+        updateCounts()
+    elif entry["event"] == "SearchAndRescue" and entry["Name"] == "wreckagecomponents":
+        this.counts[2] += entry["Count"] # Get correct ammount
+        this.totals[2] += entry["Count"] # Get correct ammount
+        config.set("EvacCount_totals", json.dumps(this.totals))
+        print "Just got", str(entry["Count"]),"wreckage components."
+        updateCounts()
+    elif entry["event"] == "SearchAndRescue" and entry["Name"] == "occupiedcryopod":
+        this.counts[3] += entry["Count"] # Get correct ammount
+        this.totals[3] += entry["Count"] # Get correct ammount
+        config.set("EvacCount_totals", json.dumps(this.totals))
+        print "Just got", str(entry["Count"]),"escape pods."
+        updateCounts()
+    elif entry["event"] == "SearchAndRescue" and entry["Name"] == "personaleffects":
+        this.counts[4] += entry["Count"] # Get correct ammount
+        this.totals[4] += entry["Count"] # Get correct ammount
+        config.set("EvacCount_totals", json.dumps(this.totals))
+        print "Just got", str(entry["Count"]),"personal effects."
+        updateCounts()
+    elif entry["event"] == "SearchAndRescue" and entry["Name"] == "damagedescapepod":
+        this.counts[5] += entry["Count"] # Get correct ammount
+        this.totals[5] += entry["Count"] # Get correct ammount
+        config.set("EvacCount_totals", json.dumps(this.totals))
+        print "Just got", str(entry["Count"]),"damaged pods."
+        updateCounts()
+    elif entry["event"] == "SearchAndRescue" and entry["Name"] == "politicalprisoner":
+        this.counts[6] += entry["Count"] # Get correct ammount
+        this.totals[6] += entry["Count"] # Get correct ammount
+        config.set("EvacCount_totals", json.dumps(this.totals))
+        print "Just got", str(entry["Count"]),"political prisoners."
+        updateCounts()
+    elif entry["event"] == "CollectCargo" and entry["Name"] == "encryptedcorrespondence":
+        this.counts[6] += entry["Count"] # Get correct ammount
+        this.totals[6] += entry["Count"] # Get correct ammount
+        config.set("EvacCount_totals", json.dumps(this.totals))
+        print "Just got", str(entry["Count"]),"encrupted correspondence."
+        updateCounts()
