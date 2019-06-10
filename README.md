@@ -26,4 +26,4 @@ The count of evacuated civilians for the current session has two available optio
 * Calculate it for the current Elite Session: Add evacuee counts as long as you don't load into Elite or close EDSM
 
 ## Acknowledgments
-* This plugin used the DistanceCalc plugin by Thurion which can be found at https://github.com/Thurion/DistanceCalc/
+* This plugin used the DistanceCalc plugin by Thurion which can be found at https://github.com/Thurion/DistanceCalc/ as inspiration.
