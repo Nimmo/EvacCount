@@ -27,7 +27,7 @@ from l10n import Locale
 
 this = sys.modules[__name__]	# For holding module globals
 
-this.VERSION = "0.3"
+this.VERSION = "0.3.1"
 this.PADX = 5
 this.WIDTH = 10
 
@@ -76,7 +76,7 @@ def plugin_prefs(parent, cmdr, is_beta):
    #'''# TODO: complete later
    nb.Label(frameBottom, text="Search and rescue options").grid(row=5, column=0, padx=this.PADX, sticky=tk.W)
 
-   sarBlackBox = nb.Checkbutton(frameBottom, variable=blackBoxOption, text="Track occupied escape pods")
+   sarBlackBox = nb.Checkbutton(frameBottom, variable=blackBoxOption, text="Track black boxes")
    sarBlackBox.var = blackBoxOption
    sarBlackBox.grid(row=6, column=0, padx=this.PADX * 2, sticky=tk.W)
 
@@ -123,14 +123,23 @@ def setStateRadioButtons(evacuatedSessionEdmc, evacuatedSessionElite):
 def prefs_changed():
    settings = [this.evacuatedTotalOption.get(), this.evacuatedSessionOption.get(), this.evacuatedSessionSelected.get()]
    config.set("EvacCount_options", json.dumps(settings))
-   sarSettings = [this.blackBoxOption.get(), this.wreckageOption.get(), this.occupiedPodOption.get(), this.personalEffectsOption.get(), this.damagedPodOption.get(), this.prisonersOption.get(), this.correspondenceOption.get()]
+   this.sarSettings =[blackBoxOption.get(),
+                 wreckageOption.get(),
+                 occupiedPodOption.get(),
+                 personalEffectsOption.get(),
+                 damagedPodOption.get(),
+                 prisonersOption.get(),
+                 correspondenceOption.get()]
+   config.set("EvacCount_sarSettings",json.dumps(this.sarSettings))
    updateMainUi()
 
 def updateMainUi():
     # labels for evacation EvacCountSetting
     settingTotal, settingSession, settingSessionOption = getSettingsEvacuated()
     sarSettings = getSarSettings
-
+    print this.sarSettings
+    skipped = 0
+    count = 2
     for row in range(len(this.evacuatedLabels)):
         description, session, total = this.evacuatedLabels[row]
         if row == 0:
@@ -141,7 +150,9 @@ def updateMainUi():
             if(settingTotal == 1):
                 total.grid(row=row, column=2, sticky=tk.W)
                 total["text"] = "Total"
-        else:
+            else:
+                total.grid_remove()
+        elif row == 1:
             description.grid(row=row, column=0, sticky=tk.W)
             description["text"] = this.labels[row-1]
             session.grid(row=row, column=1, sticky=tk.W)
@@ -149,8 +160,27 @@ def updateMainUi():
             if(settingTotal == 1):
                 total.grid(row=row, column=2, sticky=tk.W)
                 total["text"] = this.totals[row-1]
-    #for row in range(len(this.evacuatedLabels)):
-    #    description, session, total = this.evacuatedLabels[row]
+            else:
+                total.grid_remove()
+        else:
+            if this.sarSettings[row - 2] == 1:
+                description.grid(row=(count), column=0, sticky=tk.W)
+                description["text"] = this.labels[row - 1]
+                session.grid(row=(count), column=1, sticky=tk.W)
+                session["text"] = this.counts[row - 1]
+
+                print "printing:", this.labels[row - 1], "on line", str(count)
+                if(settingTotal == 1):
+                    total.grid(row=(count), column=2, sticky=tk.W)
+                    total["text"] = this.totals[row - 1]
+                else:
+                    total.grid_remove()
+                count += 1
+            else:
+                description.grid_remove()
+                session.grid_remove()
+                total.grid_remove()
+                skipped += 1
 
 
 def plugin_app(parent):
@@ -187,9 +217,16 @@ def plugin_start():
    this.wreckageOption = tk.IntVar(value=wreckageOption and 1)
    this.occupiedPodOption = tk.IntVar(value=occupiedPodOption and 1)
    this.personalEffectsOption = tk.IntVar(value=personalEffectsOption and 1)
-   this.damagedPodOption = tk.IntVar(value=damagedPodOption and 1)
+   this.damagedPodOption = tk.IntVar(value=occupiedPodOption and 1)
    this.prisonersOption = tk.IntVar(value=prisonersOption and 1)
    this.correspondenceOption = tk.IntVar(value=correspondenceOption and 1)
+   this.sarSettings =[this.blackBoxOption.get(),
+                 this.wreckageOption.get(),
+                 this.occupiedPodOption.get(),
+                 this.personalEffectsOption.get(),
+                 this.damagedPodOption.get(),
+                 this.prisonersOption.get(),
+                 this.correspondenceOption.get()]
    return "EvacCount"
 
 def getSettingsEvacuated():
@@ -202,67 +239,75 @@ def getSettingsEvacuated():
 def updateCounts():
     for i in range(1,len(this.evacuatedLabels)):
         item,session, total = this.evacuatedLabels[i]
-        session["text"] = "{0}".format(Locale.stringFromNumber(counts[i-1],0))
-        total["text"] = "{0}".format(Locale.stringFromNumber(totals[i-1],0))
+        if i == 1:
+            session["text"] = "{0}".format(Locale.stringFromNumber(counts[i-1],0))
+            total["text"] = "{0}".format(Locale.stringFromNumber(totals[i-1],0))
+        elif this.sarSettings[i-1] == 1:
+            session["text"] = "{0}".format(Locale.stringFromNumber(counts[i-1],0))
+            total["text"] = "{0}".format(Locale.stringFromNumber(totals[i-1],0))
 
 
 def journal_entry(cmdr, system, station, entry, state):
-    if entry["event"] == "MissionAccepted" and entry["Name"] == "Mission_DS_PassengerBulk":
-        #Figure out how we pick up passengers
-        this.missions[entry["MissionID"]] = entry["PassengerCount"]
-        config.set("EvacCount_missions", json.dumps(this.missions))
-        print "Picked up", str(entry["PassengerCount"]), "passengers."
-    elif entry["event"] == "MissionCompleted" and entry["Name"] == "Mission_DS_PassengerBulk_name":
-        try:
-            print "Just got", str(this.missions[entry["MissionID"]]),"passengers."
-            this.counts[0] += this.missions[entry["MissionID"]] # Get correct ammount
-            this.totals[0] += this.missions[entry["MissionID"]] # Get correct ammount
-            config.set("EvacCount_totals", json.dumps(this.totals))
+    if entry["event"] == "MissionAccepted":
+        if entry["Name"] == "Mission_DS_PassengerBulk":
+            #Figure out how we pick up passengers
+            this.missions[entry["MissionID"]] = entry["PassengerCount"]
+            config.set("EvacCount_missions", json.dumps(this.missions))
+            print "Picked up", str(entry["PassengerCount"]), "passengers."
+    elif entry["event"] == "MissionCompleted":
+        if entry["Name"] == "Mission_DS_PassengerBulk_name":
+            try:
+                print "Just got", str(this.missions[entry["MissionID"]]),"passengers."
+                this.counts[0] += this.missions[entry["MissionID"]] # Get correct ammount
+                this.totals[0] += this.missions[entry["MissionID"]] # Get correct ammount
+                config.set("EvacCount_totals", json.dumps(this.totals))
 
-            del this.missions[entry["MissionID"]]
-        except KeyError:
-            print "You appear to have tried to hand in a mission which this plugin didn't know about"
-        config.set("EvacCount_missions", json.dumps(this.missions))
-        updateCounts()
-    elif entry["event"] == "SearchAndRescue" and entry["Name"] == "usscargoblackbox":
-        this.counts[1] += entry["Count"] # Get correct ammount
-        this.totals[1] += entry["Count"] # Get correct ammount
-        config.set("EvacCount_totals", json.dumps(this.totals))
-        print "Just got", str(entry["Count"]),"escape pods."
-        updateCounts()
-    elif entry["event"] == "SearchAndRescue" and entry["Name"] == "wreckagecomponents":
-        this.counts[2] += entry["Count"] # Get correct ammount
-        this.totals[2] += entry["Count"] # Get correct ammount
-        config.set("EvacCount_totals", json.dumps(this.totals))
-        print "Just got", str(entry["Count"]),"wreckage components."
-        updateCounts()
-    elif entry["event"] == "SearchAndRescue" and entry["Name"] == "occupiedcryopod":
-        this.counts[3] += entry["Count"] # Get correct ammount
-        this.totals[3] += entry["Count"] # Get correct ammount
-        config.set("EvacCount_totals", json.dumps(this.totals))
-        print "Just got", str(entry["Count"]),"escape pods."
-        updateCounts()
-    elif entry["event"] == "SearchAndRescue" and entry["Name"] == "personaleffects":
-        this.counts[4] += entry["Count"] # Get correct ammount
-        this.totals[4] += entry["Count"] # Get correct ammount
-        config.set("EvacCount_totals", json.dumps(this.totals))
-        print "Just got", str(entry["Count"]),"personal effects."
-        updateCounts()
-    elif entry["event"] == "SearchAndRescue" and entry["Name"] == "damagedescapepod":
-        this.counts[5] += entry["Count"] # Get correct ammount
-        this.totals[5] += entry["Count"] # Get correct ammount
-        config.set("EvacCount_totals", json.dumps(this.totals))
-        print "Just got", str(entry["Count"]),"damaged pods."
-        updateCounts()
-    elif entry["event"] == "SearchAndRescue" and entry["Name"] == "politicalprisoner":
-        this.counts[6] += entry["Count"] # Get correct ammount
-        this.totals[6] += entry["Count"] # Get correct ammount
-        config.set("EvacCount_totals", json.dumps(this.totals))
-        print "Just got", str(entry["Count"]),"political prisoners."
-        updateCounts()
-    elif entry["event"] == "CollectCargo" and entry["Name"] == "encryptedcorrespondence":
-        this.counts[6] += entry["Count"] # Get correct ammount
-        this.totals[6] += entry["Count"] # Get correct ammount
-        config.set("EvacCount_totals", json.dumps(this.totals))
-        print "Just got", str(entry["Count"]),"encrupted correspondence."
-        updateCounts()
+                del this.missions[entry["MissionID"]]
+            except KeyError:
+                print "You appear to have tried to hand in a mission which this plugin didn't know about"
+            config.set("EvacCount_missions", json.dumps(this.missions))
+            updateCounts()
+    elif entry["event"] == "SearchAndRescue" :
+        if entry["Name"] == "usscargoblackbox":
+            this.counts[1] += entry["Count"] # Get correct ammount
+            this.totals[1] += entry["Count"] # Get correct ammount
+            config.set("EvacCount_totals", json.dumps(this.totals))
+            print "Just got", str(entry["Count"]),"black boxes."
+            updateCounts()
+        elif entry["Name"] == "wreckagecomponents":
+            this.counts[2] += entry["Count"] # Get correct ammount
+            this.totals[2] += entry["Count"] # Get correct ammount
+            config.set("EvacCount_totals", json.dumps(this.totals))
+            print "Just got", str(entry["Count"]),"wreckage components."
+            updateCounts()
+        elif entry["Name"] == "occupiedcryopod":
+            this.counts[3] += entry["Count"] # Get correct ammount
+            this.totals[3] += entry["Count"] # Get correct ammount
+            config.set("EvacCount_totals", json.dumps(this.totals))
+            print "Just got", str(entry["Count"]),"escape pods."
+            updateCounts()
+        elif entry["Name"] == "personaleffects":
+            this.counts[4] += entry["Count"] # Get correct ammount
+            this.totals[4] += entry["Count"] # Get correct ammount
+            config.set("EvacCount_totals", json.dumps(this.totals))
+            print "Just got", str(entry["Count"]),"personal effects."
+            updateCounts()
+        elif entry["Name"] == "damagedescapepod":
+            this.counts[5] += entry["Count"] # Get correct ammount
+            this.totals[5] += entry["Count"] # Get correct ammount
+            config.set("EvacCount_totals", json.dumps(this.totals))
+            print "Just got", str(entry["Count"]),"damaged pods."
+            updateCounts()
+        elif entry["Name"] == "politicalprisoner":
+            this.counts[6] += entry["Count"] # Get correct ammount
+            this.totals[6] += entry["Count"] # Get correct ammount
+            config.set("EvacCount_totals", json.dumps(this.totals))
+            print "Just got", str(entry["Count"]),"political prisoners."
+            updateCounts()
+    elif entry["event"] == "CollectCargo":
+        if entry["Name"] == "encryptedcorrespondence":
+            this.counts[6] += entry["Count"] # Get correct ammount
+            this.totals[6] += entry["Count"] # Get correct ammount
+            config.set("EvacCount_totals", json.dumps(this.totals))
+            print "Just got", str(entry["Count"]),"encrupted correspondence."
+            updateCounts()
