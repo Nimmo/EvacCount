@@ -27,7 +27,7 @@ from l10n import Locale
 
 this = sys.modules[__name__]	# For holding module globals
 
-this.VERSION = "0.3.1"
+this.VERSION = "0.4 - Test Release"
 this.PADX = 5
 this.WIDTH = 10
 
@@ -168,8 +168,6 @@ def updateMainUi():
                 description["text"] = this.labels[row - 1]
                 session.grid(row=(count), column=1, sticky=tk.W)
                 session["text"] = this.counts[row - 1]
-
-                print "printing:", this.labels[row - 1], "on line", str(count)
                 if(settingTotal == 1):
                     total.grid(row=(count), column=2, sticky=tk.W)
                     total["text"] = this.totals[row - 1]
@@ -254,10 +252,12 @@ def journal_entry(cmdr, system, station, entry, state):
             this.missions[entry["MissionID"]] = entry["PassengerCount"]
             config.set("EvacCount_missions", json.dumps(this.missions))
             print "Picked up", str(entry["PassengerCount"]), "passengers."
+        elif entry["Name"] == "Mission_DS_Collect":
+            print "Picked up a mission to collect", str(entry["Count"]), entry["Commodity_Localised"]
     elif entry["event"] == "MissionCompleted":
         if entry["Name"] == "Mission_DS_PassengerBulk_name":
             try:
-                print "Just got", str(this.missions[entry["MissionID"]]),"passengers."
+                print "Just evacuated", str(this.missions[entry["MissionID"]]),"passengers."
                 this.counts[0] += this.missions[entry["MissionID"]] # Get correct ammount
                 this.totals[0] += this.missions[entry["MissionID"]] # Get correct ammount
                 config.set("EvacCount_totals", json.dumps(this.totals))
@@ -266,6 +266,33 @@ def journal_entry(cmdr, system, station, entry, state):
             except KeyError:
                 print "You appear to have tried to hand in a mission which this plugin didn't know about"
             config.set("EvacCount_missions", json.dumps(this.missions))
+            updateCounts()
+        elif entry["Name"] == "Mission_DS_Collect_name":
+                print "Just dropped off", str(entry["Count"]), "units of", entry["Commodity_Localised"]
+                #:"$DamagedEscapePod_Name;"
+                if entry["Commodity"] == "$BlackBox_Name;":
+                    this.counts[1] += entry["Count"]
+                    this.totals[1] += entry["Count"]
+                elif entry["Commodity"] == "$WreckageComponents_Name;":
+                    this.counts[2] += entry["Count"]
+                    this.totals[2] += entry["Count"]
+                elif entry["Commodity"] == "$OccupiedCryoPod_Name;":
+                    this.counts[3] += entry["Count"]
+                    this.totals[3] += entry["Count"]
+                elif entry["Commodity"] == "$PersonalEffects_Name;":
+                    this.counts[4] += entry["Count"]
+                    this.totals[4] += entry["Count"]
+                elif entry["Commodity"] == "$DamagedEscapePod_Name;":
+                    this.counts[5] += entry["Count"]
+                    this.totals[5] += entry["Count"]
+                elif entry["Commodity"] == "$PoliticalPrisoner_Name;":
+                    this.counts[6] += entry["Count"]
+                    this.totals[6] += entry["Count"]
+                elif entry["Commodity"] == "$EncryptedCorrespondence_Name;":
+                    this.counts[7] += entry["Count"]
+                    this.totals[7] += entry["Count"]
+                config.set("EvacCount_totals", json.dumps(this.totals))
+
             updateCounts()
     elif entry["event"] == "SearchAndRescue" :
         if entry["Name"] == "usscargoblackbox":
