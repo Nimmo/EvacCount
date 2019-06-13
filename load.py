@@ -27,7 +27,7 @@ from l10n import Locale
 
 this = sys.modules[__name__]	# For holding module globals
 
-this.VERSION = "0.4 - Test Release"
+this.VERSION = "0.5"
 
 #Set the space between objects in UI
 this.PADX = 5
