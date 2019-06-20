@@ -27,7 +27,7 @@ from l10n import Locale
 
 this = sys.modules[__name__]	# For holding module globals
 
-this.VERSION = "0.5"
+this.VERSION = "1.0"
 
 #Set the space between objects in UI
 this.PADX = 5
@@ -305,8 +305,6 @@ def journal_entry(cmdr, system, station, entry, state):
         print "we care about Elite sessions."
         this.counts = [0,0,0,0,0,0,0,0]
         updateCounts()
-
-
     elif entry["event"] == "MissionAccepted":
         if entry["Name"] == "Mission_DS_PassengerBulk":
             # We need the mission dictionary as the mission completed entries
