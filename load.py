@@ -241,6 +241,7 @@ def plugin_start():
     # Set this sessions's totals to 0
     this.counts = [0,0,0,0,0,0,0,0]
 
+
     evacuatedTotalOption,evacuatedSessionOption,evacuatedSessionSelected = getSettingsEvacuated()
     blackBoxOption, wreckageOption, occupiedPodOption, personalEffectsOption, damagedPodOption, prisonersOption, correspondenceOption = getSarSettings()
 
@@ -285,12 +286,12 @@ def updateCounts():
     '''
     Update displayed totals whenever the counts are updated
     '''
-    item,session, total = this.evacuatedLabels[0]
+    item,session, total = this.evacuatedLabels[1]
     session["text"] = "{0}".format(Locale.stringFromNumber(counts[0],0))
     total["text"] = "{0}".format(Locale.stringFromNumber(totals[0],0))
-    for i in range(1,len(this.evacuatedLabels)):
+    for i in range(2,len(this.evacuatedLabels)):
         item,session, total = this.evacuatedLabels[i]
-        if this.sarSettings[i-1] == 1:
+        if this.sarSettings[i-2] == 1:
             session["text"] = "{0}".format(Locale.stringFromNumber(counts[i-1],0))
             total["text"] = "{0}".format(Locale.stringFromNumber(totals[i-1],0))
 
@@ -300,8 +301,13 @@ def journal_entry(cmdr, system, station, entry, state):
     For each journal entry, check to see if we're interested in this type of
     event and if so, handle it.
     '''
+    if entry["event"] == "LoadGame" and this.evacuatedSessionSelected.get() == 1:
+        print "we care about Elite sessions."
+        this.counts = [0,0,0,0,0,0,0,0]
+        updateCounts()
 
-    if entry["event"] == "MissionAccepted":
+
+    elif entry["event"] == "MissionAccepted":
         if entry["Name"] == "Mission_DS_PassengerBulk":
             # We need the mission dictionary as the mission completed entries
             # do not track the number of passengers.
