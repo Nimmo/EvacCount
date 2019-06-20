@@ -27,7 +27,7 @@ from l10n import Locale
 
 this = sys.modules[__name__]	# For holding module globals
 
-this.VERSION = "0.4 - Test Release"
+this.VERSION = "0.5"
 
 #Set the space between objects in UI
 this.PADX = 5
@@ -339,7 +339,7 @@ def journal_entry(cmdr, system, station, entry, state):
                 print "Just dropped off", str(entry["Count"]), "units of", entry["Commodity_Localised"]
                 # The Commodity names aren't guaranteed to be correct and will
                 # likely be the cause of counts not being updated.
-                if entry["Commodity"] == "$BlackBox_Name;":
+                if entry["Commodity"] == "$USSCargoBlackBox_Name;":
                     this.counts[1] += entry["Count"]
                     this.totals[1] += entry["Count"]
                 elif entry["Commodity"] == "$WreckageComponents_Name;":
