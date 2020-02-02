@@ -302,7 +302,7 @@ def journal_entry(cmdr, system, station, entry, state):
     event and if so, handle it.
     '''
     if entry["event"] == "LoadGame" and this.evacuatedSessionSelected.get() == 1:
-        print "we care about Elite sessions."
+        print "[EvacCount] we care about Elite sessions."
         this.counts = [0,0,0,0,0,0,0,0]
         updateCounts()
     elif entry["event"] == "MissionAccepted":
@@ -311,18 +311,19 @@ def journal_entry(cmdr, system, station, entry, state):
             # do not track the number of passengers.
             this.missions[entry["MissionID"]] = entry["PassengerCount"]
             config.set("EvacCount_missions", json.dumps(this.missions))
-            print "Picked up", str(entry["PassengerCount"]), "passengers."
+            print "[EvacCount] Picked up", str(entry["PassengerCount"]), "passengers."
         elif entry["Name"] == "Mission_DS_Collect":
             # Commodity collection missions do contain required counts, so
             # we this will just print out a line ot the log file.
-            print "Picked up a mission to collect", str(entry["Count"]), entry["Commodity_Localised"]
+            print "[EvacCount] Picked up a mission to collect", str(entry["Count"]), entry["Commodity_Localised"]
 
     elif entry["event"] == "MissionCompleted":
+        print "[EvacCount] Handed in an mission"
         if entry["Name"] == "Mission_DS_PassengerBulk_name":
             try:
                 # Try/Except blocks required in case CMDR attempts ot hand in a
                 # mission that the plugin didn't know about.
-                print "Just evacuated", str(this.missions[entry["MissionID"]]),"passengers."
+                print "[EvacCount] Just evacuated", str(this.missions[entry["MissionID"]]),"passengers."
                 this.counts[0] += this.missions[entry["MissionID"]] # Get correct ammount
                 this.totals[0] += this.missions[entry["MissionID"]] # Get correct ammount
                 config.set("EvacCount_totals", json.dumps(this.totals))
@@ -330,11 +331,11 @@ def journal_entry(cmdr, system, station, entry, state):
                 del this.missions[entry["MissionID"]]
             except KeyError:
                 # KeyError is thrown when the MissionID doesn't exist
-                print "You appear to have tried to hand in a mission which this plugin didn't know about"
+                print "[EvacCount] You appear to have tried to hand in a mission which this plugin didn't know about"
             config.set("EvacCount_missions", json.dumps(this.missions))
             updateCounts()
         elif entry["Name"] == "Mission_DS_Collect_name":
-                print "Just dropped off", str(entry["Count"]), "units of", entry["Commodity_Localised"]
+                print "[EvacCount] Just dropped off", str(entry["Count"]), "units of", entry["Commodity_Localised"]
                 # The Commodity names aren't guaranteed to be correct and will
                 # likely be the cause of counts not being updated.
                 if entry["Commodity"] == "$USSCargoBlackBox_Name;":
@@ -365,42 +366,42 @@ def journal_entry(cmdr, system, station, entry, state):
             this.counts[1] += entry["Count"] # Get correct ammount
             this.totals[1] += entry["Count"] # Get correct ammount
             config.set("EvacCount_totals", json.dumps(this.totals))
-            print "Just got", str(entry["Count"]),"black boxes."
+            print "[EvacCount] Just got", str(entry["Count"]),"black boxes."
             updateCounts()
         elif entry["Name"] == "wreckagecomponents":
             this.counts[2] += entry["Count"] # Get correct ammount
             this.totals[2] += entry["Count"] # Get correct ammount
             config.set("EvacCount_totals", json.dumps(this.totals))
-            print "Just got", str(entry["Count"]),"wreckage components."
+            print "[EvacCount] Just got", str(entry["Count"]),"wreckage components."
             updateCounts()
         elif entry["Name"] == "occupiedcryopod":
             this.counts[3] += entry["Count"] # Get correct ammount
             this.totals[3] += entry["Count"] # Get correct ammount
             config.set("EvacCount_totals", json.dumps(this.totals))
-            print "Just got", str(entry["Count"]),"escape pods."
+            print "[EvacCount] Just got", str(entry["Count"]),"escape pods."
             updateCounts()
         elif entry["Name"] == "personaleffects":
             this.counts[4] += entry["Count"] # Get correct ammount
             this.totals[4] += entry["Count"] # Get correct ammount
             config.set("EvacCount_totals", json.dumps(this.totals))
-            print "Just got", str(entry["Count"]),"personal effects."
+            print "[EvacCount] Just got", str(entry["Count"]),"personal effects."
             updateCounts()
         elif entry["Name"] == "damagedescapepod":
             this.counts[5] += entry["Count"] # Get correct ammount
             this.totals[5] += entry["Count"] # Get correct ammount
             config.set("EvacCount_totals", json.dumps(this.totals))
-            print "Just got", str(entry["Count"]),"damaged pods."
+            print "[EvacCount] Just got", str(entry["Count"]),"damaged pods."
             updateCounts()
         elif entry["Name"] == "politicalprisoner":
             this.counts[6] += entry["Count"] # Get correct ammount
             this.totals[6] += entry["Count"] # Get correct ammount
             config.set("EvacCount_totals", json.dumps(this.totals))
-            print "Just got", str(entry["Count"]),"political prisoners."
+            print "[EvacCount] Just got", str(entry["Count"]),"political prisoners."
             updateCounts()
     elif entry["event"] == "CollectCargo":
         if entry["Name"] == "encryptedcorrespondence":
             this.counts[6] += entry["Count"] # Get correct ammount
             this.totals[6] += entry["Count"] # Get correct ammount
             config.set("EvacCount_totals", json.dumps(this.totals))
-            print "Just got", str(entry["Count"]),"encrupted correspondence."
+            print "[EvacCount] Just got", str(entry["Count"]),"encrupted correspondence."
             updateCounts()
