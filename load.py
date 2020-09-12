@@ -27,7 +27,7 @@ from l10n import Locale
 
 this = sys.modules[__name__]	# For holding module globals
 
-this.VERSION = "1.1"
+this.VERSION = "1.3"
 
 #Set the space between objects in UI
 this.PADX = 5
@@ -398,10 +398,11 @@ def journal_entry(cmdr, is_beta, system, station, entry, state):
             config.set("EvacCount_totals", json.dumps(this.totals))
             print("[EvacCount] Just got", str(entry["Count"]),"political prisoners.")
             updateCounts()
-    elif entry["event"] == "CollectCargo":
-        if entry["Name"] == "encryptedcorrespondence":
-            this.counts[6] += entry["Count"] # Get correct ammount
-            this.totals[6] += entry["Count"] # Get correct ammount
+    elif entry["event"] == "MarketSell":
+        if entry["Type"] == "encryptedcorrespondence":
+            this.counts[7] += entry["Count"] # Get correct ammount
+            this.totals[7] += entry["Count"] # Get correct ammount
             config.set("EvacCount_totals", json.dumps(this.totals))
             print("[EvacCount] Just got", str(entry["Count"]),"encrupted correspondence.")
             updateCounts()
+    
